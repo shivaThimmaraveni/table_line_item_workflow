@@ -224,6 +224,7 @@ async def chat_table_line_item(req: ChatRequest, request: Request):
 
     async def event_stream():
         try:
+            merged_values: Dict[str, Any] = dict(initial_state)
             yield f"event: custom\ndata: {json.dumps({'type': 'heartbeat', 'step': 'initializing'})}\n\n"
             async for mode, chunk in workflow.astream(
                 initial_state,
@@ -240,7 +241,9 @@ async def chat_table_line_item(req: ChatRequest, request: Request):
                     )
                     yield f"event: {event_type}\ndata: {json.dumps(chunk)}\n\n"
                 elif mode == "updates":
-                    for node_name in chunk.keys():
+                    for node_name, node_update in chunk.items():
+                        if isinstance(node_update, dict):
+                            merged_values.update(node_update)
                         event = {"node": node_name}
                         store.log_event(
                             session_id=session_id,
@@ -250,8 +253,14 @@ async def chat_table_line_item(req: ChatRequest, request: Request):
                         )
                         yield f"event: node_complete\ndata: {json.dumps(event)}\n\n"
 
-            final_state = await workflow.aget_state(config)
-            values = final_state.values if hasattr(final_state, "values") else {}
+            try:
+                final_state = await workflow.aget_state(config)
+                values = final_state.values if hasattr(final_state, "values") else {}
+            except ValueError as e:
+                if "No checkpointer set" not in str(e):
+                    raise
+                # Workflow is compiled without checkpointer; use streamed updates.
+                values = merged_values
             done_payload = _done_payload(values)
             all_messages = values.get("messages") or messages
             store.save_checkpoint(
