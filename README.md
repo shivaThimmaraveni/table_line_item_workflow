@@ -54,15 +54,25 @@ copy .env.example .env
 ```
 
 3. Ensure Bedrock credentials are available in your environment (for example via AWS profile/role).
-4. Start:
+4. Set Bedrock model env values in `.env`.  
+   For embeddings, set `BEDROCK_EMBED_MODEL` to an **inference profile ID/ARN** (not a foundation model ID).
+5. Start:
 
 ```powershell
 .\scripts\run-local.ps1
 ```
 
-5. Open Swagger:
+6. Open Swagger:
 
 `http://localhost:8080/docs`
+
+### Bedrock model configuration note
+
+If your IAM role is allowed only for inference profiles, do not use direct foundation model IDs
+like `amazon.titan-embed-text-v2:0`. Use profile-style values such as:
+
+- `BEDROCK_EMBED_MODEL=us.amazon.titan-embed-text-v2:0`
+- or your explicit inference profile ARN
 
 ## Swagger workflow
 

@@ -47,11 +47,11 @@ def get_settings() -> Settings:
         ),
         bedrock_summary_model=os.getenv(
             "BEDROCK_SUMMARY_MODEL",
-            "anthropic.claude-3-haiku-20240307-v1:0",
+            "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
         ),
         bedrock_embed_model=os.getenv(
             "BEDROCK_EMBED_MODEL",
-            "amazon.titan-embed-text-v2:0",
+            "us.amazon.titan-embed-text-v2:0",
         ),
         data_dir=data_dir,
         documents_dir=(data_dir / "documents"),
