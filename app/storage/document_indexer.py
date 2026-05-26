@@ -15,6 +15,21 @@ from app.storage.sqlite_store import SQLiteStore
 logger = get_logger(__name__)
 
 
+def _dataframe_to_text(df: pd.DataFrame, max_rows: int = 200) -> str:
+    """
+    Convert DataFrame to plain text without optional dependencies.
+
+    pandas.to_markdown() requires the optional `tabulate` package, which may not
+    be present on minimal EC2 setups. Use to_string() to avoid that dependency.
+    """
+    preview = df.head(max_rows)
+    try:
+        return preview.to_string(index=False)
+    except Exception:
+        # Last-resort fallback keeps extraction resilient for odd dataframes.
+        return preview.to_csv(index=False)
+
+
 def compute_sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as f:
@@ -29,13 +44,13 @@ def extract_text(path: Path) -> str:
         return path.read_text(encoding="utf-8", errors="ignore")
     if suffix == ".csv":
         df = pd.read_csv(path)
-        return df.to_markdown(index=False)
+        return _dataframe_to_text(df)
     if suffix in {".xlsx", ".xls"}:
         xls = pd.ExcelFile(path)
         blocks: List[str] = []
         for sheet in xls.sheet_names:
             df = pd.read_excel(path, sheet_name=sheet)
-            blocks.append(f"Sheet: {sheet}\n{df.head(200).to_markdown(index=False)}")
+            blocks.append(f"Sheet: {sheet}\n{_dataframe_to_text(df, max_rows=200)}")
         return "\n\n".join(blocks)
     if suffix == ".pdf":
         reader = PdfReader(str(path))
