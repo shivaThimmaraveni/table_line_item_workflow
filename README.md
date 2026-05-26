@@ -56,6 +56,8 @@ copy .env.example .env
 3. Ensure Bedrock credentials are available in your environment (for example via AWS profile/role).
 4. Set Bedrock model env values in `.env`.  
    For embeddings, set `BEDROCK_EMBED_MODEL` to an **inference profile ID/ARN** (not a foundation model ID).
+   If your first embedding profile is denied, set `BEDROCK_EMBED_FALLBACK_MODELS` with comma-separated
+   backup inference profile IDs/ARNs.
 5. Start:
 
 ```powershell
@@ -73,6 +75,12 @@ like `amazon.titan-embed-text-v2:0`. Use profile-style values such as:
 
 - `BEDROCK_EMBED_MODEL=us.amazon.titan-embed-text-v2:0`
 - or your explicit inference profile ARN
+- optional fallback chain:
+  - `BEDROCK_EMBED_FALLBACK_MODELS=us.amazon.titan-embed-text-v2:0,arn:aws:bedrock:...:inference-profile/...`
+
+Important:
+- Do not leave `BEDROCK_EMBED_MODEL` empty.
+- After `.env` changes, restart the service so new values are loaded.
 
 ## Swagger workflow
 

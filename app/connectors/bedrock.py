@@ -5,6 +5,9 @@ from langchain_aws import BedrockEmbeddings, ChatBedrockConverse
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.config import Settings
+from app.logging_setup import get_logger
+
+logger = get_logger(__name__)
 
 
 def _extract_text_from_response(content: Any) -> str:
@@ -35,6 +38,10 @@ def _looks_like_foundation_model_id(model_id: str) -> bool:
 
 
 def _require_inference_profile(model_id: str, setting_name: str) -> None:
+    if not (model_id or "").strip():
+        raise ValueError(
+            f"{setting_name} is empty. Set a Bedrock inference profile model ID/ARN."
+        )
     if _looks_like_foundation_model_id(model_id):
         raise ValueError(
             f"{setting_name} points to a foundation model ID/ARN ({model_id}). "
@@ -48,9 +55,18 @@ class BedrockConnector:
         _require_inference_profile(settings.bedrock_chat_model, "BEDROCK_CHAT_MODEL")
         _require_inference_profile(settings.bedrock_summary_model, "BEDROCK_SUMMARY_MODEL")
         _require_inference_profile(settings.bedrock_embed_model, "BEDROCK_EMBED_MODEL")
+        for i, model_id in enumerate(settings.bedrock_embed_fallback_models, start=1):
+            _require_inference_profile(model_id, f"BEDROCK_EMBED_FALLBACK_MODELS[{i}]")
         self._embedder = BedrockEmbeddings(
             model_id=settings.bedrock_embed_model,
             region_name=settings.aws_region,
+        )
+        logger.info(
+            "Bedrock models configured (inference profiles only): chat=%s summary=%s embed=%s fallbacks=%s",
+            settings.bedrock_chat_model,
+            settings.bedrock_summary_model,
+            settings.bedrock_embed_model,
+            list(settings.bedrock_embed_fallback_models),
         )
 
     async def invoke(self, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -99,5 +115,24 @@ class BedrockConnector:
         # embed_query is sync in langchain_aws; run in thread-like wrapper
         import asyncio
 
-        return await asyncio.to_thread(self._embedder.embed_query, text)
+        candidate_models = [self.settings.bedrock_embed_model] + list(
+            self.settings.bedrock_embed_fallback_models
+        )
+        errors: List[str] = []
+        for model_id in candidate_models:
+            try:
+                embedder = self._embedder
+                if model_id != self.settings.bedrock_embed_model:
+                    embedder = BedrockEmbeddings(
+                        model_id=model_id,
+                        region_name=self.settings.aws_region,
+                    )
+                return await asyncio.to_thread(embedder.embed_query, text)
+            except Exception as e:
+                errors.append(f"{model_id}: {e}")
+                continue
+        raise RuntimeError(
+            "Embedding failed for all configured inference profiles. "
+            f"Tried: {candidate_models}. Errors: {errors}"
+        )
 
