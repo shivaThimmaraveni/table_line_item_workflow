@@ -19,11 +19,11 @@ COPY .env.example ./.env.example
 
 # Runtime defaults (override in ECS task definition/environment as needed).
 ENV APP_HOST=0.0.0.0 \
-    APP_PORT=8080 \
+    APP_PORT=8090 \
     APP_RELOAD=false \
     DATA_DIR=/app/data \
     DB_PATH=/app/table_line_item.db
 
-EXPOSE 8080
+EXPOSE 8090
 
-CMD ["sh", "-c", "python -m uvicorn app.main:app --host ${APP_HOST:-0.0.0.0} --port ${APP_PORT:-8080}"]
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host ${APP_HOST:-0.0.0.0} --port ${APP_PORT:-8090}"]
