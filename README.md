@@ -80,6 +80,10 @@ like `amazon.titan-embed-text-v2:0`. Use profile-style values such as:
 
 Important:
 - Do not leave `BEDROCK_EMBED_MODEL` empty.
+- If you use model ARN values for chat/summary models, set:
+  - `BEDROCK_CHAT_PROVIDER` (for `BEDROCK_CHAT_MODEL`)
+  - `BEDROCK_SUMMARY_PROVIDER` (for `BEDROCK_SUMMARY_MODEL`)
+  Example for Claude profiles: `anthropic`
 - After `.env` changes, restart the service so new values are loaded.
 
 ## Swagger workflow

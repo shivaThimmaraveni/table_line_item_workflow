@@ -49,6 +49,10 @@ def _require_inference_profile(model_id: str, setting_name: str) -> None:
         )
 
 
+def _is_model_arn(model_id: str) -> bool:
+    return (model_id or "").strip().startswith("arn:aws:bedrock:")
+
+
 class BedrockConnector:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -62,18 +66,37 @@ class BedrockConnector:
             region_name=settings.aws_region,
         )
         logger.info(
-            "Bedrock models configured (inference profiles only): chat=%s summary=%s embed=%s fallbacks=%s",
+            "Bedrock models configured (inference profiles only): chat=%s chat_provider=%s summary=%s summary_provider=%s embed=%s fallbacks=%s",
             settings.bedrock_chat_model,
+            settings.bedrock_chat_provider,
             settings.bedrock_summary_model,
+            settings.bedrock_summary_provider,
             settings.bedrock_embed_model,
             list(settings.bedrock_embed_fallback_models),
         )
 
+    def _provider_for_model(self, model: str, payload: Dict[str, Any]) -> str | None:
+        explicit = str(payload.get("provider") or "").strip()
+        if explicit:
+            return explicit
+        if not _is_model_arn(model):
+            return None
+        if model == self.settings.bedrock_summary_model:
+            return self.settings.bedrock_summary_provider
+        return self.settings.bedrock_chat_provider
+
     async def invoke(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         model = payload.get("model") or self.settings.bedrock_chat_model
         _require_inference_profile(str(model), "payload.model")
+        provider = self._provider_for_model(str(model), payload)
+        if _is_model_arn(str(model)) and not provider:
+            raise ValueError(
+                "Model ARN requires provider. Set payload.provider or configure "
+                "BEDROCK_CHAT_PROVIDER/BEDROCK_SUMMARY_PROVIDER."
+            )
         llm = ChatBedrockConverse(
             model=model,
+            provider=provider,
             region_name=self.settings.aws_region,
             temperature=float(payload.get("temperature", 0.0)),
             max_tokens=int(payload.get("max_tokens", 1024)),
@@ -95,8 +118,15 @@ class BedrockConnector:
     async def stream_invoke(self, payload: Dict[str, Any]) -> AsyncGenerator[str, None]:
         model = payload.get("model") or self.settings.bedrock_chat_model
         _require_inference_profile(str(model), "payload.model")
+        provider = self._provider_for_model(str(model), payload)
+        if _is_model_arn(str(model)) and not provider:
+            raise ValueError(
+                "Model ARN requires provider. Set payload.provider or configure "
+                "BEDROCK_CHAT_PROVIDER/BEDROCK_SUMMARY_PROVIDER."
+            )
         llm = ChatBedrockConverse(
             model=model,
+            provider=provider,
             region_name=self.settings.aws_region,
             temperature=float(payload.get("temperature", 0.0)),
             max_tokens=int(payload.get("max_tokens", 2048)),

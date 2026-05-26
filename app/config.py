@@ -37,7 +37,9 @@ class Settings:
     app_reload: bool
     aws_region: str
     bedrock_chat_model: str
+    bedrock_chat_provider: str
     bedrock_summary_model: str
+    bedrock_summary_provider: str
     bedrock_embed_model: str
     bedrock_embed_fallback_models: tuple[str, ...]
     data_dir: Path
@@ -61,9 +63,17 @@ def get_settings() -> Settings:
             "BEDROCK_CHAT_MODEL",
             "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
         ),
+        bedrock_chat_provider=_env_or_default(
+            "BEDROCK_CHAT_PROVIDER",
+            "anthropic",
+        ),
         bedrock_summary_model=_env_or_default(
             "BEDROCK_SUMMARY_MODEL",
             "global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        ),
+        bedrock_summary_provider=_env_or_default(
+            "BEDROCK_SUMMARY_PROVIDER",
+            "anthropic",
         ),
         bedrock_embed_model=_env_or_default(
             "BEDROCK_EMBED_MODEL",
